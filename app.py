@@ -2,15 +2,15 @@ import cv2
 import numpy as np
 import requests
 import base64
+import os
+import tempfile
 from flask import Flask, request, send_file
 import insightface
 from insightface.app import FaceAnalysis
-import tempfile
-import os
 
 app = Flask(__name__)
 
-# InsightFace Model Load
+# Model Load
 face_swapper = insightface.model_zoo.get_model('inswapper_128.onnx')
 face_analysis = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
 face_analysis.prepare(ctx_id=0, det_size=(640, 640))
@@ -23,7 +23,6 @@ def url_to_image(url):
 
 @app.route('/api/faceswap', methods=['GET'])
 def face_swap():
-    # GET Parameters
     face_swap_url = request.args.get('face_swap')
     target_url = request.args.get('target')
 
@@ -52,4 +51,6 @@ def face_swap():
     return send_file(temp_file.name, mimetype='image/jpeg')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=True)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=True)
+    

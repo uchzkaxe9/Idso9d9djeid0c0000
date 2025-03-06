@@ -1,56 +1,38 @@
-import cv2
-import numpy as np
-import requests
-import base64
 import os
-import tempfile
-from flask import Flask, request, send_file
-import insightface
-from insightface.app import FaceAnalysis
+import requests
+import gdown
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Model Load
-face_swapper = insightface.model_zoo.get_model('inswapper_128.onnx')
-face_analysis = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
-face_analysis.prepare(ctx_id=0, det_size=(640, 640))
+# Model ka filename
+MODEL_FILE = "inswapper_128.onnx"
 
-# Function: Convert Image URL to NumPy Array
-def url_to_image(url):
-    response = requests.get(url)
-    image_array = np.frombuffer(response.content, dtype=np.uint8)
-    return cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+# Google Drive se model download karne ka function
+def download_model():
+    url = "https://drive.google.com/uc?id=1krOLgjW2tAPaqV-Bw4YALz0xT5zlb5HF"  # Apna Google Drive ID yahan daalo
+    gdown.download(url, MODEL_FILE, quiet=False)
 
-@app.route('/api/faceswap', methods=['GET'])
+# Agar model file missing ho to download karlo
+if not os.path.exists(MODEL_FILE):
+    print("Model not found! Downloading from Google Drive...")
+    download_model()
+
+@app.route('/')
+def home():
+    return "Face Swap API is running!"
+
+@app.route('/face_swap', methods=['POST'])
 def face_swap():
-    face_swap_url = request.args.get('face_swap')
-    target_url = request.args.get('target')
+    data = request.json
+    source_url = data.get('source')
+    target_url = data.get('target')
 
-    if not face_swap_url or not target_url:
-        return {'error': 'face_swap aur target parameters required'}, 400
+    if not source_url or not target_url:
+        return jsonify({"error": "Source and Target image URLs required"}), 400
 
-    # Load Images
-    source_img = url_to_image(face_swap_url)
-    target_img = url_to_image(target_url)
-
-    # Detect Faces
-    src_faces = face_analysis.get(source_img)
-    tgt_faces = face_analysis.get(target_img)
-
-    if len(src_faces) == 0 or len(tgt_faces) == 0:
-        return {'error': 'Face detection failed'}, 400
-
-    # Perform Face Swap
-    swapped_img = face_swapper.get(target_img, tgt_faces[0], source_img, src_faces[0], paste_back=True)
-
-    # Save Image Temporarily
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-    cv2.imwrite(temp_file.name, swapped_img)
-
-    # Serve Image
-    return send_file(temp_file.name, mimetype='image/jpeg')
+    return jsonify({"message": "Face swap process started!", "source": source_url, "target": target_url})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
     

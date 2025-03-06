@@ -1,7 +1,4 @@
 flask
-gunicorn
-numpy
 requests
-opencv-python
-insightface
-onnxruntime
+gdown
+gunicorn
